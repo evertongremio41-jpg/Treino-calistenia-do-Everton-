@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Treino Calistenia Completo</title>
+    <style>
+        body { font-family: sans-serif; background: #1a1a1a; color: #fff; text-align: center; padding: 15px; }
+        #timer { font-size: 70px; font-weight: bold; color: #00d2d3; margin: 10px 0; }
+        #status { font-size: 22px; color: #ff9f43; margin-bottom: 10px; }
+        #ex-image-wrap {
+            width: 100%; max-width: 350px; height: 250px; border-radius: 10px; margin: 10px auto;
+            display: flex; align-items: center; justify-content: center;
+            border: 3px solid #5f27cd; background-color: #262626; overflow: hidden; position: relative;
+        }
+        #ex-image-wrap img { width: 100%; height: 100%; object-fit: cover; }
+        #ex-image-wrap svg { width: 80%; height: 80%; }
+        #instruction { font-size: 16px; color: #ccc; height: 50px; padding: 10px; margin-bottom: 10px; }
+        select, button { padding: 15px; margin: 5px; width: 90%; border-radius: 8px; border: none; font-size: 18px; cursor: pointer; }
+        button { background: #5f27cd; color: white; font-weight: bold; }
+        #pause { background: #ff9f43; }
+    </style>
+</head>
+<body>
+
+    <select id="exerciseSelect" onchange="updateUI()">
+        <option value="Burpees" data-desc="Agache, mãos ao chão, pés para trás, flexão e salte." data-ex="burpee">Burpees</option>
+        <option value="Agachamento" data-desc="Costas retas, desça o quadril e suba." data-ex="squat">Agachamento</option>
+        <option value="Flexão" data-desc="Mãos alinhadas aos ombros, desça o corpo e empurre." data-ex="pushup">Flexão</option>
+        <option value="Mountain Climbers" data-desc="Posição de prancha, joelhos ao peito alternadamente." data-ex="mountain">Mountain Climbers</option>
+        <option value="Afundo" data-desc="Passo à frente e desça o joelho quase ao chão." data-ex="lunge">Afundo</option>
+        <option value="Prancha" data-desc="Esticado, apoiado nos antebraços, abdômen contraído." data-ex="plank">Prancha</option>
+    </select>
+
+    <div id="status">Selecione e Inicie</div>
+    <div id="ex-image-wrap">
+        <img id="ex-photo" src="" alt="Exercício" style="display:none;">
+        <div id="ex-image"></div>
+    </div>
+    <div id="instruction"></div>
+    <div id="timer">00s</div>
+    
+    <button onclick="startSequence()">INICIAR SEQUÊNCIA TOTAL</button>
+    <button id="pause" onclick="pauseWorkout()">PAUSAR / RETOMAR</button>
+
+    <script>
+        let timerInterval, timeLeft, isPaused = false, currentIndex = 0;
+
+        // Coloque suas fotos/gifs reais na pasta "images" ao lado deste arquivo,
+        // usando exatamente estes nomes (aceita .jpg, .jpeg, .png ou .gif):
+        //   images/burpee.jpg
+        //   images/squat.jpg
+        //   images/pushup.jpg
+        //   images/mountain.jpg
+        //   images/lunge.jpg
+        //   images/plank.jpg
+        // Se o arquivo não existir ainda, o app mostra automaticamente um ícone SVG no lugar.
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+
+        const stroke = '#00d2d3';
+        const svgIcons = {
+            burpee: `<svg viewBox="0 0 100 100" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round">
+                <circle cx="50" cy="18" r="8"/>
+                <line x1="50" y1="26" x2="50" y2="55"/>
+                <line x1="50" y1="55" x2="25" y2="80"/>
+                <line x1="50" y1="55" x2="75" y2="80"/>
+                <line x1="50" y1="35" x2="20" y2="20"/>
+                <line x1="50" y1="35" x2="80" y2="20"/>
+            </svg>`,
+            squat: `<svg viewBox="0 0 100 100" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round">
+                <circle cx="50" cy="22" r="8"/>
+                <line x1="50" y1="30" x2="50" y2="55"/>
+                <line x1="50" y1="55" x2="35" y2="70"/>
+                <line x1="35" y1="70" x2="45" y2="88"/>
+                <line x1="50" y1="55" x2="65" y2="70"/>
+                <line x1="65" y1="70" x2="55" y2="88"/>
+                <line x1="50" y1="38" x2="25" y2="45"/>
+                <line x1="50" y1="38" x2="75" y2="45"/>
+            </svg>`,
+            pushup: `<svg viewBox="0 0 100 100" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round">
+                <circle cx="80" cy="55" r="8"/>
+                <line x1="72" y1="58" x2="25" y2="65"/>
+                <line x1="25" y1="65" x2="15" y2="85"/>
+                <line x1="45" y1="63" x2="45" y2="85"/>
+                <line x1="65" y1="58" x2="55" y2="80"/>
+                <line x1="72" y1="50" x2="72" y2="80"/>
+            </svg>`,
+            mountain: `<svg viewBox="0 0 100 100" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round">
+                <circle cx="80" cy="45" r="8"/>
+                <line x1="72" y1="48" x2="20" y2="60"/>
+                <line x1="20" y1="60" x2="10" y2="80"/>
+                <line x1="45" y1="55" x2="55" y2="35"/>
+                <line x1="65" y1="52" x2="55" y2="75"/>
+                <line x1="72" y1="40" x2="72" y2="70"/>
+            </svg>`,
+            lunge: `<svg viewBox="0 0 100 100" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round">
+                <circle cx="55" cy="20" r="8"/>
+                <line x1="55" y1="28" x2="52" y2="55"/>
+                <line x1="52" y1="55" x2="30" y2="65"/>
+                <line x1="30" y1="65" x2="35" y2="88"/>
+                <line x1="52" y1="55" x2="70" y2="75"/>
+                <line x1="70" y1="75" x2="70" y2="90"/>
+                <line x1="53" y1="35" x2="30" y2="45"/>
+                <line x1="53" y1="35" x2="75" y2="30"/>
+            </svg>`,
+            plank: `<svg viewBox="0 0 100 100" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round">
+                <circle cx="80" cy="50" r="8"/>
+                <line x1="72" y1="52" x2="20" y2="58"/>
+                <line x1="20" y1="58" x2="10" y2="78"/>
+                <line x1="45" y1="55" x2="45" y2="78"/>
+                <line x1="72" y1="45" x2="72" y2="75"/>
+            </svg>`
+        };
+
+        // Tenta carregar a foto real testando as extensões possíveis, uma a uma.
+        // Se nenhuma existir, cai no ícone SVG.
+        function tryLoadPhoto(exKey, extIndex) {
+            const photoEl = document.getElementById('ex-photo');
+            const iconEl = document.getElementById('ex-image');
+
+            if (extIndex >= imageExtensions.length) {
+                photoEl.style.display = 'none';
+                iconEl.style.display = 'flex';
+                iconEl.innerHTML = svgIcons[exKey] || '';
+                return;
+            }
+
+            const testImg = new Image();
+            const path = `images/${exKey}.${imageExtensions[extIndex]}`;
+            testImg.onload = () => {
+                photoEl.src = path;
+                photoEl.style.display = 'block';
+                iconEl.style.display = 'none';
+                iconEl.innerHTML = '';
+            };
+            testImg.onerror = () => tryLoadPhoto(exKey, extIndex + 1);
+            testImg.src = path;
+        }
+
+        function updateUI() {
+            const select = document.getElementById('exerciseSelect');
+            const option = select.options[select.selectedIndex];
+            document.getElementById('instruction').innerText = option.getAttribute('data-desc');
+            const exKey = option.getAttribute('data-ex');
+            tryLoadPhoto(exKey, 0);
+        }
+
+        function speak(text, callback) {
+            window.speechSynthesis.cancel();
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.lang = 'pt-BR';
+            msg.onend = callback;
+            window.speechSynthesis.speak(msg);
+        }
+
+        function pauseWorkout() {
+            isPaused = !isPaused;
+            document.getElementById('status').innerText = isPaused ? "PAUSADO" : "EXECUTANDO";
+        }
+
+        function startSequence() {
+            currentIndex = document.getElementById('exerciseSelect').selectedIndex;
+            runNextExercise();
+        }
+
+        function runNextExercise() {
+            const select = document.getElementById('exerciseSelect');
+            if (currentIndex >= select.options.length) {
+                speak("Treino completo! Parabéns pelo esforço.");
+                document.getElementById('status').innerText = "TREINO FINALIZADO";
+                return;
+            }
+
+            select.selectedIndex = currentIndex;
+            updateUI();
+            document.getElementById('status').innerText = `Executando: ${select.value}`;
+
+            speak(`Próximo: ${select.value}. ${select.options[currentIndex].getAttribute('data-desc')}. Valendo!`, () => {
+                startTimer(20, () => {
+                    speak("Exercício encerrado. Descanse quarenta segundos.", () => {
+                        startTimer(40, () => {
+                            currentIndex++;
+                            runNextExercise();
+                        });
+                    });
+                });
+            });
+        }
+
+        function startTimer(seconds, onComplete) {
+            timeLeft = seconds;
+            document.getElementById('timer').innerText = `${timeLeft}s`;
+            timerInterval = setInterval(() => {
+                if (!isPaused) {
+                    timeLeft--;
+                    document.getElementById('timer').innerText = `${timeLeft}s`;
+                    if (timeLeft <= 0) {
+                        clearInterval(timerInterval);
+                        onComplete();
+                    }
+                }
+            }, 1000);
+        }
+
+        // Inicializa a primeira imagem ao carregar
+        updateUI();
+    </script>
+</body>
+</html>
