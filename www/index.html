@@ -144,17 +144,37 @@
             tryLoadPhoto(exKey, 0);
         }
 
-        // ---- FALA COM REDE DE SEGURANÇA ----
-        // Em WebView de app Android, o evento "terminei de falar" às vezes nunca
-        // dispara. Por isso colocamos um tempo limite: se a voz não confirmar em
-        // (tamanho do texto x tempo por caractere), o app segue em frente sozinho.
-        function speak(text, callback) {
+        // ---- FALA ----
+        // No app instalado (Android), usamos o plugin nativo de Text-to-Speech
+        // (motor de voz de verdade do celular). No navegador normal (Chrome),
+        // usamos a voz do próprio navegador. Sempre com rede de segurança:
+        // se a voz falhar por qualquer motivo, o app segue em frente sozinho.
+        async function speak(text, callback) {
             let jaChamou = false;
             const seguirEmFrente = () => {
                 if (jaChamou) return;
                 jaChamou = true;
                 callback();
             };
+
+            const ttsNativo = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.TextToSpeech;
+
+            if (ttsNativo) {
+                try {
+                    await ttsNativo.speak({
+                        text: text,
+                        lang: 'pt-BR',
+                        rate: 1.0,
+                        pitch: 1.0,
+                        volume: 1.0,
+                        category: 'ambient'
+                    });
+                    seguirEmFrente();
+                    return;
+                } catch (e) {
+                    // Se o plugin nativo falhar, cai pro método do navegador abaixo.
+                }
+            }
 
             try {
                 if (!window.speechSynthesis) {
