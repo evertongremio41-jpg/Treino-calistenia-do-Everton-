@@ -144,12 +144,37 @@
             tryLoadPhoto(exKey, 0);
         }
 
+        // ---- FALA COM REDE DE SEGURANÇA ----
+        // Em WebView de app Android, o evento "terminei de falar" às vezes nunca
+        // dispara. Por isso colocamos um tempo limite: se a voz não confirmar em
+        // (tamanho do texto x tempo por caractere), o app segue em frente sozinho.
         function speak(text, callback) {
-            window.speechSynthesis.cancel();
-            const msg = new SpeechSynthesisUtterance(text);
-            msg.lang = 'pt-BR';
-            msg.onend = callback;
-            window.speechSynthesis.speak(msg);
+            let jaChamou = false;
+            const seguirEmFrente = () => {
+                if (jaChamou) return;
+                jaChamou = true;
+                callback();
+            };
+
+            try {
+                if (!window.speechSynthesis) {
+                    seguirEmFrente();
+                    return;
+                }
+                window.speechSynthesis.cancel();
+                const msg = new SpeechSynthesisUtterance(text);
+                msg.lang = 'pt-BR';
+                msg.rate = 1;
+                msg.onend = seguirEmFrente;
+                msg.onerror = seguirEmFrente;
+                window.speechSynthesis.speak(msg);
+            } catch (e) {
+                seguirEmFrente();
+            }
+
+            // Rede de segurança: nunca deixa o app travado esperando a voz.
+            const tempoEstimado = Math.max(1500, text.length * 90);
+            setTimeout(seguirEmFrente, tempoEstimado);
         }
 
         function pauseWorkout() {
@@ -158,6 +183,11 @@
         }
 
         function startSequence() {
+            // Garante que o áudio "acorda" a partir de um toque do usuário
+            // (necessário em muitos WebViews de Android).
+            if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+            }
             currentIndex = document.getElementById('exerciseSelect').selectedIndex;
             runNextExercise();
         }
@@ -165,8 +195,8 @@
         function runNextExercise() {
             const select = document.getElementById('exerciseSelect');
             if (currentIndex >= select.options.length) {
-                speak("Treino completo! Parabéns pelo esforço.");
                 document.getElementById('status').innerText = "TREINO FINALIZADO";
+                speak("Treino completo! Parabéns pelo esforço.", () => {});
                 return;
             }
 
@@ -176,6 +206,7 @@
 
             speak(`Próximo: ${select.value}. ${select.options[currentIndex].getAttribute('data-desc')}. Valendo!`, () => {
                 startTimer(20, () => {
+                    document.getElementById('status').innerText = "Descanso";
                     speak("Exercício encerrado. Descanse quarenta segundos.", () => {
                         startTimer(40, () => {
                             currentIndex++;
@@ -187,6 +218,7 @@
         }
 
         function startTimer(seconds, onComplete) {
+            clearInterval(timerInterval);
             timeLeft = seconds;
             document.getElementById('timer').innerText = `${timeLeft}s`;
             timerInterval = setInterval(() => {
