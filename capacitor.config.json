@@ -1,0 +1,6 @@
+{
+  "appId": "com.everton.treinocalistenia",
+  "appName": "Treino Calistenia",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
