@@ -1,0 +1,15 @@
+{
+  "name": "treino-calistenia",
+  "version": "1.0.0",
+  "description": "Treino Calistenia Completo - App Android",
+  "scripts": {
+    "sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  }
+}
