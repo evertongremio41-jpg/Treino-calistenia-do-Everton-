@@ -24,7 +24,7 @@ jobs:
           java-version: '17'
 
       - name: Instalar dependências
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Adicionar plataforma Android (se ainda não existir)
         run: |
